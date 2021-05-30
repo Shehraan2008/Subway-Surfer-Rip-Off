@@ -9,8 +9,9 @@ let coinGroup,
   coinImg,
   drinkImg,
   swordImg;
-let jake, jakeAnimation;
+let jake, jakeAnimation, jakeDead;
 let roadImg, road;
+let power, powerImg, gameOver, gameOverImg;
 
 // Loading Image Assets.
 function preload(params) {
@@ -20,12 +21,15 @@ function preload(params) {
     "./app/assets/Jake3.png",
     "./app/assets/Jake4.png"
   );
+  jakeDead = loadAnimation("./app/assets/Jake1.png");
 
   roadImg = loadImage("./app/assets/Road.png");
 
   coinImg = loadImage("./app/assets/coin.png");
   drinkImg = loadImage("./app/assets/energyDrink.png");
   swordImg = loadImage("./app/assets/sword.png");
+  powerImg = loadImage("./app/assets/power.png");
+  gameOverImg = loadImage("./app/assets/gameOver.png");
 }
 
 function setup(params) {
@@ -37,6 +41,10 @@ function setup(params) {
 
   jake = createSprite(width / 2, height / 2 + 100, 50, 50);
   jake.addAnimation("jakeRunning", jakeAnimation);
+  jake.addAnimation("jake_dead", jakeDead);
+
+  gameOver = createSprite(width / 2, height / 2);
+  gameOver.addImage(gameOverImg);
 
   // Sprite Groups.
   coinGroup = createGroup();
@@ -50,6 +58,7 @@ function draw(params) {
   // Controlling the game accridng to the gameState
   if (gameState === "play") {
     // Hiding some sprites
+    gameOver.visible = false;
 
     // Ground Moving Effect
     road.velocityY = 4 + (3 * score) / 100;
@@ -74,35 +83,51 @@ function draw(params) {
     spawnSword();
 
     // Collison Detection
-    for (var i = 0; i < coinGroup.lenght; i++) {
-      if (coinGroup.get(i).isTouching(jake)) {
+    for (var i = 0; i < coinGroup.length; i++) {
+      if (coinGroup.get(i).collide(jake)) {
         coinGroup.get(i).destroy();
         coins++;
       }
     }
 
-    for (let i = 0; i < energyDrinkGroup.lenght; i++) {
-      if (energyDrinkGroup.get(i).isTouching(jake)) {
+    for (let i = 0; i < energyDrinkGroup.length; i++) {
+      if (energyDrinkGroup.get(i).collide(jake)) {
         energyDrinkGroup.get(i).destroy();
         drinks++;
+        spawnPower();
       }
     }
 
-    if (swordGroup.isTouching(jake)) {
+    // game end.
+    if (swordGroup.collide(jake)) {
       gameState = "end";
     }
   } else if (gameState === "end") {
+    gameOver.visible = true;
+
+    // stopping the sprites.
     road.velocityY = 0;
     jake.velocityX = 0;
-    coinGroup.setLifetimeEach(-1);
-    energyDrinkGroup.setLifetimeEach(-1);
-    swordGroup.setLifetimeEach(-1);
     swordGroup.setVelocityYEach(0);
     coinGroup.setVelocityYEach(0);
     energyDrinkGroup.setVelocityYEach(0);
+
+    // kepping them alive so there lifetime does not end.
+    coinGroup.setLifetimeEach(-1);
+    energyDrinkGroup.setLifetimeEach(-1);
+    swordGroup.setLifetimeEach(-1);
+
+    jake.changeAnimation("jake_dead", jakeDead);
+
+    // reset the game.
+    if (mousePressedOver(gameOver)) {
+      resetGame();
+    }
   }
 
   drawSprites();
+  edges = createEdgeSprites();
+  jake.collide(edges);
 
   // Game Essentials
   textSize(24);
@@ -111,6 +136,7 @@ function draw(params) {
   text(`score: ${score}`, 50, 50);
 }
 
+// Spawn Fucntions.
 spawnSword = (_) => {
   if (frameCount % 60 === 0) {
     sword = createSprite(Math.round(random(50, width - 50)), 0, 50, 50);
@@ -142,4 +168,25 @@ spawnDrink = (_) => {
     drink.lifetime = 300;
     drink.scale = 0.3;
   }
+};
+
+spawnPower = (_) => {
+  power = createSprite(jake.x, jake.y, 100, 50);
+  power.addImage(powerImg);
+  power.lifetime = 10;
+  power.scale = 0.3;
+  score += 100;
+};
+
+// Resseting the game
+resetGame = (_) => {
+  jake.changeAnimation("jakeRunning", jakeAnimation);
+  gameState = "play";
+
+  // destroying old sprites.
+  coinGroup.destroyEach();
+  swordGroup.destroyEach();
+  energyDrinkGroup.destroyEach();
+
+  score = coins = drinks = 0;
 };
